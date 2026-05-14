@@ -1,0 +1,48 @@
+download_charging_records:
+  name: Download Charging Records
+  description: Downloads a PDF of charging records for a wallbox and saves it to a file on the Home Assistant host.
+  fields:
+    station_id:
+      name: Station ID
+      description: The ID of the charging station (wallbox).
+      required: true
+      example: "abc123"
+      selector:
+        text:
+    rfid_card_id:
+      name: RFID Card ID
+      description: The ID of the RFID card to filter records by.
+      required: true
+      example: "xyz789"
+      selector:
+        text:
+    created_at_after:
+      name: Start Date
+      description: Include records created after this date (ISO 8601, e.g. 2024-01-01).
+      required: true
+      example: "2024-01-01"
+      selector:
+        text:
+    created_at_before:
+      name: End Date
+      description: Include records created before this date (ISO 8601, e.g. 2024-12-31).
+      required: true
+      example: "2024-12-31"
+      selector:
+        text:
+    pdf_timezone:
+      name: Timezone
+      description: Timezone used for timestamps in the PDF (e.g. Europe/Berlin).
+      required: false
+      default: "Europe/Berlin"
+      example: "Europe/Berlin"
+      selector:
+        text:
+    output_path:
+      name: Output Path
+      description: Full path on the HA host where the PDF will be written.
+      required: false
+      default: "/config/charging_records.pdf"
+      example: "/config/charging_records.pdf"
+      selector:
+        text:

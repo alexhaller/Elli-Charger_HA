@@ -2,7 +2,7 @@
   "name": "Elli Charger HA",
   "content_in_root": false,
   "render_readme": true,
-  "domains": ["sensor"],
+  "domains": ["sensor", "binary_sensor"],
   "homeassistant": "2026.1.0",
   "iot_class": "Cloud Polling"
 }

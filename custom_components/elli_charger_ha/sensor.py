@@ -1,8 +1,9 @@
 """Support for Elli Charger sensors."""
+
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
+from typing import Any, override
 
 from homeassistant.components.sensor import (
     SensorDeviceClass,
@@ -15,10 +16,15 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.update_coordinator import CoordinatorEntity, DataUpdateCoordinator
+from homeassistant.helpers.update_coordinator import (
+    CoordinatorEntity,
+    DataUpdateCoordinator,
+)
 
 from .const import DOMAIN
-from .entity import ElliBaseEntity
+from . import ElliBaseEntity, ElliCoordinator
+
+PARALLEL_UPDATES = 0
 
 
 async def async_setup_entry(
@@ -27,24 +33,24 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up Elli Charger sensors based on a config entry."""
-    coordinator = hass.data[DOMAIN][entry.entry_id]
+    coordinator: ElliCoordinator = hass.data[DOMAIN][entry.entry_id]
 
-    entities = []
+    entities: list = []
 
     if coordinator.data and (stations := coordinator.data.get("stations")):
         for station in stations:
             station_id = station.id
-            entities.append(ElliWallboxSensor(coordinator, station_id, entry.entry_id))
-            entities.append(ElliLastSessionSensor(coordinator, station_id, entry.entry_id))
-            entities.append(ElliSessionEnergySensor(coordinator, station_id, entry.entry_id))
-            entities.append(ElliSessionPowerSensor(coordinator, station_id, entry.entry_id))
-            entities.append(ElliAccumulatedChargingSensor(coordinator, station_id, entry.entry_id))
-            entities.append(ElliSessionStartSensor(coordinator, station_id, entry.entry_id))
-            entities.append(ElliFirmwareSensor(coordinator, station_id, entry.entry_id))
+            entities.append(ElliWallboxSensor(coordinator, station_id))
+            entities.append(ElliLastSessionSensor(coordinator, station_id))
+            entities.append(ElliSessionEnergySensor(coordinator, station_id))
+            entities.append(ElliSessionPowerSensor(coordinator, station_id))
+            entities.append(ElliAccumulatedChargingSensor(coordinator, station_id))
+            entities.append(ElliSessionStartSensor(coordinator, station_id))
+            entities.append(ElliFirmwareSensor(coordinator, station_id))
 
     if coordinator.data and (rfid_cards := coordinator.data.get("rfid_cards")):
         for card in rfid_cards:
-            entities.append(ElliRFIDCardSensor(coordinator, card.id, entry.entry_id))
+            entities.append(ElliRFIDCardSensor(coordinator, card.id))
 
     async_add_entities(entities)
 
@@ -57,19 +63,12 @@ class ElliWallboxSensor(ElliBaseSensor):
     """Representation of an Elli Wallbox sensor."""
 
     _attr_icon = "mdi:ev-station"
+    _attr_name = None
 
     @property
     def unique_id(self) -> str:
         """Return unique ID."""
-        return f"{self._entry_id}_wallbox_{self._station_id}"
-
-    @property
-    def name(self) -> str:
-        """Return the name of the sensor."""
-        station = self._get_station()
-        if station:
-            return f"Elli Wallbox {station.name}"
-        return f"Elli Wallbox {self._station_id}"
+        return f"{self._station_id}_status"
 
     @property
     def native_value(self) -> str | None:
@@ -105,19 +104,12 @@ class ElliLastSessionSensor(ElliBaseSensor):
     """Representation of an Elli last/current session sensor."""
 
     _attr_icon = "mdi:ev-plug-type2"
+    _attr_name = "Last Session"
 
     @property
     def unique_id(self) -> str:
         """Return unique ID."""
-        return f"{self._entry_id}_wallbox_{self._station_id}_last_session"
-
-    @property
-    def name(self) -> str:
-        """Return the name of the sensor."""
-        station = self._get_station()
-        if station:
-            return f"Elli Wallbox {station.name} Last Session"
-        return f"Elli Wallbox {self._station_id} Last Session"
+        return f"{self._station_id}_last_session"
 
     @property
     def native_value(self) -> str | None:
@@ -177,19 +169,12 @@ class ElliSessionEnergySensor(ElliBaseSensor):
     _attr_state_class = SensorStateClass.TOTAL_INCREASING
     _attr_native_unit_of_measurement = UnitOfEnergy.KILO_WATT_HOUR
     _attr_icon = "mdi:battery-charging"
+    _attr_name = "Session Energy"
 
     @property
     def unique_id(self) -> str:
         """Return unique ID."""
-        return f"{self._entry_id}_wallbox_{self._station_id}_session_energy"
-
-    @property
-    def name(self) -> str:
-        """Return the name of the sensor."""
-        station = self._get_station()
-        if station:
-            return f"Elli Wallbox {station.name} Session Energy"
-        return f"Elli Wallbox {self._station_id} Session Energy"
+        return f"{self._station_id}_session_energy"
 
     @property
     def native_value(self) -> float:
@@ -207,19 +192,12 @@ class ElliSessionPowerSensor(ElliBaseSensor):
     _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_native_unit_of_measurement = UnitOfPower.WATT
     _attr_icon = "mdi:lightning-bolt"
+    _attr_name = "Session Power"
 
     @property
     def unique_id(self) -> str:
         """Return unique ID."""
-        return f"{self._entry_id}_wallbox_{self._station_id}_session_power"
-
-    @property
-    def name(self) -> str:
-        """Return the name of the sensor."""
-        station = self._get_station()
-        if station:
-            return f"Elli Wallbox {station.name} Session Power"
-        return f"Elli Wallbox {self._station_id} Session Power"
+        return f"{self._station_id}_session_power"
 
     @property
     def native_value(self) -> float:
@@ -237,18 +215,12 @@ class ElliAccumulatedChargingSensor(ElliBaseSensor):
     _attr_state_class = SensorStateClass.TOTAL_INCREASING
     _attr_native_unit_of_measurement = UnitOfEnergy.KILO_WATT_HOUR
     _attr_icon = "mdi:battery-charging-100"
+    _attr_name = "Accumulated Energy"
 
     @property
     def unique_id(self) -> str:
         """Return unique ID."""
-        return f"{self._entry_id}_wallbox_{self._station_id}_accumulated"
-
-    @property
-    def name(self) -> str:
-        """Return the name of the sensor."""
-        station = self._get_station()
-        label = station.name if station else self._station_id
-        return f"Elli Wallbox {label} Accumulated Energy"
+        return f"{self._station_id}_accumulated_energy"
 
     def _get_accumulated(self) -> dict | None:
         """Return accumulated charging data for this station."""
@@ -262,7 +234,14 @@ class ElliAccumulatedChargingSensor(ElliBaseSensor):
         data = self._get_accumulated()
         if not data:
             return None
-        for key in ("total_energy_kwh", "energy_kwh", "totalEnergyKwh", "total_energy_wh", "energyWh", "accumulated_energy_wh"):
+        for key in (
+            "total_energy_kwh",
+            "energy_kwh",
+            "totalEnergyKwh",
+            "total_energy_wh",
+            "energyWh",
+            "accumulated_energy_wh",
+        ):
             if key in data:
                 val = data[key]
                 if "wh" in key.lower() and "kwh" not in key.lower():
@@ -282,18 +261,12 @@ class ElliSessionStartSensor(ElliBaseSensor):
 
     _attr_device_class = SensorDeviceClass.TIMESTAMP
     _attr_icon = "mdi:clock-start"
+    _attr_name = "Session Start"
 
     @property
     def unique_id(self) -> str:
         """Return unique ID."""
-        return f"{self._entry_id}_wallbox_{self._station_id}_session_start"
-
-    @property
-    def name(self) -> str:
-        """Return the name of the sensor."""
-        station = self._get_station()
-        label = station.name if station else self._station_id
-        return f"Elli Wallbox {label} Session Start"
+        return f"{self._station_id}_session_start"
 
     @property
     def native_value(self) -> datetime | None:
@@ -302,7 +275,7 @@ class ElliSessionStartSensor(ElliBaseSensor):
         if not session or not session.start_date_time:
             return None
         try:
-            return datetime.fromisoformat(session.start_date_time.replace("Z", "+00:00"))
+            return datetime.fromisoformat(session.start_date_time)
         except (ValueError, AttributeError):
             return None
 
@@ -312,18 +285,12 @@ class ElliFirmwareSensor(ElliBaseSensor):
 
     _attr_entity_category = EntityCategory.DIAGNOSTIC
     _attr_icon = "mdi:chip"
+    _attr_name = "Firmware"
 
     @property
     def unique_id(self) -> str:
         """Return unique ID."""
-        return f"{self._entry_id}_wallbox_{self._station_id}_firmware"
-
-    @property
-    def name(self) -> str:
-        """Return the name of the sensor."""
-        station = self._get_station()
-        label = station.name if station else self._station_id
-        return f"Elli Wallbox {label} Firmware"
+        return f"{self._station_id}_firmware"
 
     @property
     def native_value(self) -> str | None:
@@ -332,16 +299,17 @@ class ElliFirmwareSensor(ElliBaseSensor):
         return station.firmware_version if station else None
 
 
-class ElliRFIDCardSensor(CoordinatorEntity, SensorEntity):
+class ElliRFIDCardSensor(CoordinatorEntity[DataUpdateCoordinator[dict]], SensorEntity):
     """Sensor representing an RFID card linked to the Elli account."""
 
+    has_entity_name = True
     _attr_icon = "mdi:card-account-details"
 
-    def __init__(self, coordinator: DataUpdateCoordinator, card_id: str, entry_id: str) -> None:
+    def __init__(self, coordinator: DataUpdateCoordinator[dict], card_id: str) -> None:
         """Initialize the sensor."""
         super().__init__(coordinator)
         self._card_id = card_id
-        self._entry_id = entry_id
+        self._attr_unique_id = f"{card_id}_rfid_card"
 
     def _get_card(self):
         """Return the RFID card object."""
@@ -350,23 +318,19 @@ class ElliRFIDCardSensor(CoordinatorEntity, SensorEntity):
         cards = self.coordinator.data.get("rfid_cards", [])
         return next((c for c in cards if c.id == self._card_id), None)
 
+    @override
     @property
     def available(self) -> bool:
         """Return False if coordinator failed or card is no longer present."""
         return super().available and self._get_card() is not None
 
     @property
-    def unique_id(self) -> str:
-        """Return unique ID."""
-        return f"{self._entry_id}_rfid_{self._card_id}"
-
-    @property
-    def name(self) -> str:
-        """Return the name of the sensor."""
+    def name(self) -> str | None:
+        """Return the card-specific name suffix."""
         card = self._get_card()
         if card:
-            return f"Elli RFID {card.number}"
-        return f"Elli RFID {self._card_id}"
+            return f"RFID {card.number}"
+        return f"RFID {self._card_id}"
 
     @property
     def native_value(self) -> str | None:
@@ -378,7 +342,7 @@ class ElliRFIDCardSensor(CoordinatorEntity, SensorEntity):
     def device_info(self) -> DeviceInfo:
         """Group RFID card sensors under an account-level device."""
         return DeviceInfo(
-            identifiers={(DOMAIN, self._entry_id)},
+            identifiers={(DOMAIN, "account")},
             name="Elli Account",
             manufacturer="Elli",
         )
