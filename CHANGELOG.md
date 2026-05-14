@@ -1,3 +1,9 @@
+## [1.3.5](https://github.com/alexhaller/Elli-Charger_HA/compare/v1.3.4...v1.3.5) (2026-05-14)
+
+### Bug Fixes
+
+* broaden mypy ignore for elli_client to cover import-untyped ([2ee0c61](https://github.com/alexhaller/Elli-Charger_HA/commit/2ee0c61118c5713b9f728f4645531694dd66d056))
+
 ## [1.3.4](https://github.com/alexhaller/Elli-Charger_HA/compare/v1.3.3...v1.3.4) (2026-05-14)
 
 ### Bug Fixes
