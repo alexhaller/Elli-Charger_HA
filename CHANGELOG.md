@@ -1,3 +1,13 @@
+## [1.3.4](https://github.com/alexhaller/Elli-Charger_HA/compare/v1.3.3...v1.3.4) (2026-05-14)
+
+### Bug Fixes
+
+* remove invalid domains and iot_class fields from hacs.json ([0f5ceeb](https://github.com/alexhaller/Elli-Charger_HA/commit/0f5ceeb0c1e4a427147c551d9358dd5f67cb5e50))
+
+### Code Refactoring
+
+* apply HA/HACS conventions and Python 3.12 optimisations ([72f5f30](https://github.com/alexhaller/Elli-Charger_HA/commit/72f5f307e2a236d5c61094c18d5ed67d25b76c52))
+
 ## [1.3.3](https://github.com/alexhaller/elli-charger-ha/compare/v1.3.2...v1.3.3) (2026-04-04)
 
 ### Bug Fixes
