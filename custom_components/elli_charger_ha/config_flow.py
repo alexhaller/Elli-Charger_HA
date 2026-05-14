@@ -13,7 +13,7 @@ from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
 from homeassistant.core import callback
 from homeassistant.exceptions import HomeAssistantError
 
-from elli_client import ElliAPIClient  # type: ignore[import-not-found]
+from elli_client import ElliAPIClient  # type: ignore[import-untyped,import-not-found]
 
 from .const import CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL, DOMAIN
 

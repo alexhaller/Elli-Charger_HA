@@ -20,7 +20,7 @@ from homeassistant.helpers.update_coordinator import (
     UpdateFailed,
 )
 
-from elli_client import ElliAPIClient  # type: ignore[import-not-found]
+from elli_client import ElliAPIClient  # type: ignore[import-untyped,import-not-found]
 
 from .const import CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL, DOMAIN
 
