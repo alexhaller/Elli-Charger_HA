@@ -1,3 +1,9 @@
+## [1.3.6](https://github.com/alexhaller/Elli-Charger_HA/compare/v1.3.5...v1.3.6) (2026-05-16)
+
+### Bug Fixes
+
+* resolve API float validation, blocking SSL init, and rename integration ([c744478](https://github.com/alexhaller/Elli-Charger_HA/commit/c7444787428b5a3f85d210a8b609e147ebbaba85))
+
 ## [1.3.5](https://github.com/alexhaller/Elli-Charger_HA/compare/v1.3.4...v1.3.5) (2026-05-14)
 
 ### Bug Fixes
