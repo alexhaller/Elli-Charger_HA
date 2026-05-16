@@ -1,3 +1,9 @@
+## [1.3.7](https://github.com/alexhaller/Elli-Charger_HA/compare/v1.3.6...v1.3.7) (2026-05-16)
+
+### Bug Fixes
+
+* remove redundant wallbox status sensor ([3edb312](https://github.com/alexhaller/Elli-Charger_HA/commit/3edb31227a8f83ce440514832898886cde2854be))
+
 ## [1.3.6](https://github.com/alexhaller/Elli-Charger_HA/compare/v1.3.5...v1.3.6) (2026-05-16)
 
 ### Bug Fixes
