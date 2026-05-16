@@ -21,10 +21,15 @@ from homeassistant.helpers.update_coordinator import (
 )
 
 from elli_client import ElliAPIClient  # type: ignore[import-untyped,import-not-found]
+from elli_client.models import ChargingSession  # type: ignore[import-untyped,import-not-found]
 
 from .const import CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
+
+# The Elli API returns fractional watts; patch the model to accept float.
+ChargingSession.__annotations__["momentary_charging_speed_watts"] = float | None
+ChargingSession.model_rebuild(force=True)
 
 PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.BINARY_SENSOR]
 
@@ -35,7 +40,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Elli Charger from a config entry."""
     hass.data.setdefault(DOMAIN, {})
 
-    client = ElliAPIClient()
+    client = await hass.async_add_executor_job(ElliAPIClient)
 
     try:
         await hass.async_add_executor_job(
@@ -197,9 +202,18 @@ class ElliDataUpdateCoordinator(DataUpdateCoordinator[dict]):
                     self.client.get_accumulated_charging, station.id
                 )
             except Exception as err:
-                _LOGGER.warning(
-                    "Could not fetch accumulated charging for %s: %s", station.id, err
-                )
+                err_str = str(err)
+                if "409" in err_str or "not plugged in" in err_str.lower():
+                    _LOGGER.debug(
+                        "Accumulated charging unavailable for %s (car not plugged in)",
+                        station.id,
+                    )
+                else:
+                    _LOGGER.warning(
+                        "Could not fetch accumulated charging for %s: %s",
+                        station.id,
+                        err,
+                    )
 
         return {
             "sessions": sessions,

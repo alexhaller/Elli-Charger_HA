@@ -1,6 +1,6 @@
 {
   "domain": "elli_charger_ha",
-  "name": "Elli Charger HA",
+  "name": "Elli Charger",
   "codeowners": ["@alexhaller"],
   "config_flow": true,
   "documentation": "https://github.com/alexhaller/elli-charger_ha",
