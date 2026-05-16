@@ -40,7 +40,6 @@ async def async_setup_entry(
     if coordinator.data and (stations := coordinator.data.get("stations")):
         for station in stations:
             station_id = station.id
-            entities.append(ElliWallboxSensor(coordinator, station_id))
             entities.append(ElliLastSessionSensor(coordinator, station_id))
             entities.append(ElliSessionEnergySensor(coordinator, station_id))
             entities.append(ElliSessionPowerSensor(coordinator, station_id))
@@ -57,47 +56,6 @@ async def async_setup_entry(
 
 class ElliBaseSensor(ElliBaseEntity, SensorEntity):
     """Base class for Elli Charger sensors."""
-
-
-class ElliWallboxSensor(ElliBaseSensor):
-    """Representation of an Elli Wallbox sensor."""
-
-    _attr_icon = "mdi:ev-station"
-    _attr_name = None
-
-    @property
-    def unique_id(self) -> str:
-        """Return unique ID."""
-        return f"{self._station_id}_status"
-
-    @property
-    def native_value(self) -> str | None:
-        """Return the state of the sensor."""
-        if self._is_charging():
-            return "Charging"
-        if self._has_active_session():
-            return "Connected"
-        return "Idle"
-
-    @property
-    def extra_state_attributes(self) -> dict[str, Any]:
-        """Return additional attributes."""
-        station = self._get_station()
-        if not station:
-            return {}
-
-        attrs: dict[str, Any] = {
-            "station_id": station.id,
-            "name": station.name,
-        }
-        if station.serial_number:
-            attrs["serial_number"] = station.serial_number
-        if station.model:
-            attrs["model"] = station.model
-        if station.firmware_version:
-            attrs["firmware_version"] = station.firmware_version
-
-        return attrs
 
 
 class ElliLastSessionSensor(ElliBaseSensor):
