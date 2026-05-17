@@ -195,31 +195,10 @@ class ElliDataUpdateCoordinator(DataUpdateCoordinator[dict]):
             _LOGGER.warning("Could not fetch RFID cards: %s", err)
             rfid_cards = []
 
-        accumulated: dict = {}
-        for station in stations:
-            try:
-                accumulated[station.id] = await self.hass.async_add_executor_job(
-                    self.client.get_accumulated_charging, station.id
-                )
-            except Exception as err:
-                err_str = str(err)
-                if "409" in err_str or "not plugged in" in err_str.lower():
-                    _LOGGER.debug(
-                        "Accumulated charging unavailable for %s (car not plugged in)",
-                        station.id,
-                    )
-                else:
-                    _LOGGER.warning(
-                        "Could not fetch accumulated charging for %s: %s",
-                        station.id,
-                        err,
-                    )
-
         return {
             "sessions": sessions,
             "stations": stations,
             "rfid_cards": rfid_cards,
-            "accumulated": accumulated,
         }
 
     async def _merge_firmware_info(self, stations: list) -> None:

@@ -43,9 +43,10 @@ async def async_setup_entry(
             entities.append(ElliLastSessionSensor(coordinator, station_id))
             entities.append(ElliSessionEnergySensor(coordinator, station_id))
             entities.append(ElliSessionPowerSensor(coordinator, station_id))
-            entities.append(ElliAccumulatedChargingSensor(coordinator, station_id))
             entities.append(ElliSessionStartSensor(coordinator, station_id))
             entities.append(ElliFirmwareSensor(coordinator, station_id))
+            entities.append(ElliSerialNumberSensor(coordinator, station_id))
+            entities.append(ElliSessionRfidSensor(coordinator, station_id))
 
     if coordinator.data and (rfid_cards := coordinator.data.get("rfid_cards")):
         for card in rfid_cards:
@@ -96,7 +97,9 @@ class ElliLastSessionSensor(ElliBaseSensor):
         if session.energy_consumption_wh is not None:
             attrs["session_energy"] = round(session.energy_consumption_wh / 1000, 2)
         if session.momentary_charging_speed_watts is not None:
-            attrs["session_power"] = session.momentary_charging_speed_watts
+            attrs["session_power"] = round(
+                session.momentary_charging_speed_watts / 1000, 3
+            )
 
         if session.lifecycle_state:
             attrs["lifecycle_state"] = session.lifecycle_state
@@ -105,6 +108,8 @@ class ElliLastSessionSensor(ElliBaseSensor):
 
         if session.authentication_method:
             attrs["authentication_method"] = session.authentication_method
+        if session.rfid_card_id:
+            attrs["rfid_card_id"] = session.rfid_card_id
         if session.rfid_card_serial_number:
             attrs["rfid_card"] = session.rfid_card_serial_number
         if session.connector_id:
@@ -148,7 +153,7 @@ class ElliSessionPowerSensor(ElliBaseSensor):
 
     _attr_device_class = SensorDeviceClass.POWER
     _attr_state_class = SensorStateClass.MEASUREMENT
-    _attr_native_unit_of_measurement = UnitOfPower.WATT
+    _attr_native_unit_of_measurement = UnitOfPower.KILO_WATT
     _attr_icon = "mdi:lightning-bolt"
     _attr_name = "Session Power"
 
@@ -162,56 +167,8 @@ class ElliSessionPowerSensor(ElliBaseSensor):
         """Return the current charging power in Watts."""
         session = self._get_latest_session()
         if session and session.momentary_charging_speed_watts is not None:
-            return session.momentary_charging_speed_watts
+            return round(session.momentary_charging_speed_watts / 1000, 3)
         return 0
-
-
-class ElliAccumulatedChargingSensor(ElliBaseSensor):
-    """Lifetime accumulated energy sensor per wallbox."""
-
-    _attr_device_class = SensorDeviceClass.ENERGY
-    _attr_state_class = SensorStateClass.TOTAL_INCREASING
-    _attr_native_unit_of_measurement = UnitOfEnergy.KILO_WATT_HOUR
-    _attr_icon = "mdi:battery-charging-100"
-    _attr_name = "Accumulated Energy"
-
-    @property
-    def unique_id(self) -> str:
-        """Return unique ID."""
-        return f"{self._station_id}_accumulated_energy"
-
-    def _get_accumulated(self) -> dict | None:
-        """Return accumulated charging data for this station."""
-        if not self.coordinator.data:
-            return None
-        return self.coordinator.data.get("accumulated", {}).get(self._station_id)
-
-    @property
-    def native_value(self) -> float | None:
-        """Return total energy in kWh, trying common API key patterns."""
-        data = self._get_accumulated()
-        if not data:
-            return None
-        for key in (
-            "total_energy_kwh",
-            "energy_kwh",
-            "totalEnergyKwh",
-            "total_energy_wh",
-            "energyWh",
-            "accumulated_energy_wh",
-        ):
-            if key in data:
-                val = data[key]
-                if "wh" in key.lower() and "kwh" not in key.lower():
-                    return round(val / 1000, 2)
-                return val
-        return None
-
-    @property
-    def extra_state_attributes(self) -> dict[str, Any]:
-        """Expose full accumulated data so users can inspect available keys."""
-        data = self._get_accumulated()
-        return dict(data) if data else {}
 
 
 class ElliSessionStartSensor(ElliBaseSensor):
@@ -255,6 +212,53 @@ class ElliFirmwareSensor(ElliBaseSensor):
         """Return the firmware version string."""
         station = self._get_station()
         return station.firmware_version if station else None
+
+
+class ElliSerialNumberSensor(ElliBaseSensor):
+    """Diagnostic sensor exposing the wallbox serial number."""
+
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_icon = "mdi:identifier"
+    _attr_name = "Serial Number"
+
+    @property
+    def unique_id(self) -> str:
+        """Return unique ID."""
+        return f"{self._station_id}_serial_number"
+
+    @property
+    def native_value(self) -> str | None:
+        """Return the hardware serial number."""
+        station = self._get_station()
+        return str(station.serial_number) if station else None
+
+
+class ElliSessionRfidSensor(ElliBaseSensor):
+    """Sensor showing the RFID card serial number used in the current session."""
+
+    _attr_icon = "mdi:card-account-details"
+    _attr_name = "Session RFID Card"
+
+    @property
+    def unique_id(self) -> str:
+        """Return unique ID."""
+        return f"{self._station_id}_session_rfid"
+
+    @property
+    def native_value(self) -> str | None:
+        """Return the RFID card serial number of the current session."""
+        session = self._get_latest_session()
+        if not session:
+            return None
+        return session.rfid_card_serial_number or None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return the RFID card ID as an attribute."""
+        session = self._get_latest_session()
+        if not session or not session.rfid_card_id:
+            return {}
+        return {"rfid_card_id": session.rfid_card_id}
 
 
 class ElliRFIDCardSensor(CoordinatorEntity[DataUpdateCoordinator[dict]], SensorEntity):
