@@ -1,3 +1,9 @@
+## [1.4.0](https://github.com/alexhaller/Elli-Charger_HA/compare/v1.3.7...v1.4.0) (2026-05-17)
+
+### Features
+
+* add serial number and session RFID sensors, fix session power unit to kW, remove redundant accumulated energy sensor ([f6984ba](https://github.com/alexhaller/Elli-Charger_HA/commit/f6984ba30344c0fb25e9b93a5d1261c459034d88))
+
 ## [1.3.7](https://github.com/alexhaller/Elli-Charger_HA/compare/v1.3.6...v1.3.7) (2026-05-16)
 
 ### Bug Fixes
