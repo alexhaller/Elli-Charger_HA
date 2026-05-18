@@ -1,3 +1,9 @@
+## [1.4.1](https://github.com/alexhaller/Elli-Charger_HA/compare/v1.4.0...v1.4.1) (2026-05-18)
+
+### Bug Fixes
+
+* suppress noisy 401 re-auth log by demoting to debug level ([4998200](https://github.com/alexhaller/Elli-Charger_HA/commit/49982004a401f8de612ac81b732b0f94f0756120))
+
 ## [1.4.0](https://github.com/alexhaller/Elli-Charger_HA/compare/v1.3.7...v1.4.0) (2026-05-17)
 
 ### Features
