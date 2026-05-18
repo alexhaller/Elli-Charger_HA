@@ -5,6 +5,7 @@
 Cloud-polling integration for Elli EV wallboxes via the Elli REST API (email + password auth).
 
 - GitHub: https://github.com/alexhaller/Elli-Charger_HA
+- API documentation: https://github.com/mawiak/elli-client/blob/main/docs/api.md
 
 Key files:
 - `__init__.py` — coordinator poll interval: configurable (default 5 min); `ElliBaseEntity` base class; `ElliCoordinator` type alias

@@ -168,7 +168,7 @@ class ElliDataUpdateCoordinator(DataUpdateCoordinator[dict]):
                 )
             return await self._fetch_data()
         except Exception as err:
-            _LOGGER.error("Error communicating with API: %s", err)
+            _LOGGER.debug("API call failed, re-authenticating: %s", err)
             try:
                 await self.hass.async_add_executor_job(
                     self.client.login, self._email, self._password
