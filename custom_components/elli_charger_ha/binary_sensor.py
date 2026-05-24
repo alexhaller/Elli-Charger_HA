@@ -24,7 +24,7 @@ async def async_setup_entry(
     """Set up Elli Charger binary sensors based on a config entry."""
     coordinator: ElliCoordinator = hass.data[DOMAIN][entry.entry_id]
 
-    entities: list = []
+    entities: list[BinarySensorEntity] = []
 
     if coordinator.data and (stations := coordinator.data.get("stations")):
         for station in stations:
@@ -46,10 +46,9 @@ class ElliChargingBinarySensor(ElliBaseBinarySensor):
     _attr_icon = "mdi:ev-station"
     _attr_name = "Charging"
 
-    @property
-    def unique_id(self) -> str:
-        """Return unique ID."""
-        return f"{self._station_id}_charging"
+    def __init__(self, coordinator: ElliCoordinator, station_id: str) -> None:
+        super().__init__(coordinator, station_id)
+        self._attr_unique_id = f"{station_id}_charging"
 
     @property
     def is_on(self) -> bool:
@@ -64,10 +63,9 @@ class ElliConnectedBinarySensor(ElliBaseBinarySensor):
     _attr_icon = "mdi:ev-plug-type2"
     _attr_name = "Connected"
 
-    @property
-    def unique_id(self) -> str:
-        """Return unique ID."""
-        return f"{self._station_id}_connected"
+    def __init__(self, coordinator: ElliCoordinator, station_id: str) -> None:
+        super().__init__(coordinator, station_id)
+        self._attr_unique_id = f"{station_id}_connected"
 
     @property
     def is_on(self) -> bool:

@@ -35,7 +35,7 @@ async def async_setup_entry(
     """Set up Elli Charger sensors based on a config entry."""
     coordinator: ElliCoordinator = hass.data[DOMAIN][entry.entry_id]
 
-    entities: list = []
+    entities: list[SensorEntity] = []
 
     if coordinator.data and (stations := coordinator.data.get("stations")):
         for station in stations:
@@ -65,10 +65,9 @@ class ElliLastSessionSensor(ElliBaseSensor):
     _attr_icon = "mdi:ev-plug-type2"
     _attr_name = "Last Session"
 
-    @property
-    def unique_id(self) -> str:
-        """Return unique ID."""
-        return f"{self._station_id}_last_session"
+    def __init__(self, coordinator: ElliCoordinator, station_id: str) -> None:
+        super().__init__(coordinator, station_id)
+        self._attr_unique_id = f"{station_id}_last_session"
 
     @property
     def native_value(self) -> str | None:
@@ -134,10 +133,9 @@ class ElliSessionEnergySensor(ElliBaseSensor):
     _attr_icon = "mdi:battery-charging"
     _attr_name = "Session Energy"
 
-    @property
-    def unique_id(self) -> str:
-        """Return unique ID."""
-        return f"{self._station_id}_session_energy"
+    def __init__(self, coordinator: ElliCoordinator, station_id: str) -> None:
+        super().__init__(coordinator, station_id)
+        self._attr_unique_id = f"{station_id}_session_energy"
 
     @property
     def native_value(self) -> float:
@@ -157,10 +155,9 @@ class ElliSessionPowerSensor(ElliBaseSensor):
     _attr_icon = "mdi:lightning-bolt"
     _attr_name = "Session Power"
 
-    @property
-    def unique_id(self) -> str:
-        """Return unique ID."""
-        return f"{self._station_id}_session_power"
+    def __init__(self, coordinator: ElliCoordinator, station_id: str) -> None:
+        super().__init__(coordinator, station_id)
+        self._attr_unique_id = f"{station_id}_session_power"
 
     @property
     def native_value(self) -> float:
@@ -178,10 +175,9 @@ class ElliSessionStartSensor(ElliBaseSensor):
     _attr_icon = "mdi:clock-start"
     _attr_name = "Session Start"
 
-    @property
-    def unique_id(self) -> str:
-        """Return unique ID."""
-        return f"{self._station_id}_session_start"
+    def __init__(self, coordinator: ElliCoordinator, station_id: str) -> None:
+        super().__init__(coordinator, station_id)
+        self._attr_unique_id = f"{station_id}_session_start"
 
     @property
     def native_value(self) -> datetime | None:
@@ -202,10 +198,9 @@ class ElliFirmwareSensor(ElliBaseSensor):
     _attr_icon = "mdi:chip"
     _attr_name = "Firmware"
 
-    @property
-    def unique_id(self) -> str:
-        """Return unique ID."""
-        return f"{self._station_id}_firmware"
+    def __init__(self, coordinator: ElliCoordinator, station_id: str) -> None:
+        super().__init__(coordinator, station_id)
+        self._attr_unique_id = f"{station_id}_firmware"
 
     @property
     def native_value(self) -> str | None:
@@ -221,10 +216,9 @@ class ElliSerialNumberSensor(ElliBaseSensor):
     _attr_icon = "mdi:identifier"
     _attr_name = "Serial Number"
 
-    @property
-    def unique_id(self) -> str:
-        """Return unique ID."""
-        return f"{self._station_id}_serial_number"
+    def __init__(self, coordinator: ElliCoordinator, station_id: str) -> None:
+        super().__init__(coordinator, station_id)
+        self._attr_unique_id = f"{station_id}_serial_number"
 
     @property
     def native_value(self) -> str | None:
@@ -239,10 +233,9 @@ class ElliSessionRfidSensor(ElliBaseSensor):
     _attr_icon = "mdi:card-account-details"
     _attr_name = "Session RFID Card"
 
-    @property
-    def unique_id(self) -> str:
-        """Return unique ID."""
-        return f"{self._station_id}_session_rfid"
+    def __init__(self, coordinator: ElliCoordinator, station_id: str) -> None:
+        super().__init__(coordinator, station_id)
+        self._attr_unique_id = f"{station_id}_session_rfid"
 
     @property
     def native_value(self) -> str | None:
