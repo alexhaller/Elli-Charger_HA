@@ -1,3 +1,9 @@
+## [1.5.0](https://github.com/alexhaller/Elli-Charger_HA/compare/v1.4.1...v1.5.0) (2026-05-25)
+
+### Features
+
+* bump elli-client to 1.3.0, add import_executor, fix _attr_unique_id convention ([68b10e2](https://github.com/alexhaller/Elli-Charger_HA/commit/68b10e27de848877ce2b58cb31334fe2026640d3))
+
 ## [1.4.1](https://github.com/alexhaller/Elli-Charger_HA/compare/v1.4.0...v1.4.1) (2026-05-18)
 
 ### Bug Fixes
