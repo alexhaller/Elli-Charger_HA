@@ -1,3 +1,5 @@
+## [1.5.1](https://github.com/alexhaller/Elli-Charger_HA/compare/v1.5.0...v1.5.1) (2026-08-02)
+
 ## [1.5.0](https://github.com/alexhaller/Elli-Charger_HA/compare/v1.4.1...v1.5.0) (2026-05-25)
 
 ### Features
