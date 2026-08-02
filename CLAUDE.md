@@ -5,6 +5,7 @@
 Cloud-polling integration for Elli EV wallboxes via the Elli REST API (email + password auth).
 
 - GitHub: https://github.com/alexhaller/Elli-Charger_HA
+- Project forked from: https://github.com/mawiak/hacs-elli-charger
 - API documentation: https://github.com/mawiak/elli-client/blob/main/docs/api.md
 
 Key files:
@@ -15,7 +16,7 @@ Key files:
 
 ## Project-specific notes
 
-- **Domain**: `elli_charger_ha`; pip-audit packages: `elli-client==1.2.0`
+- **Domain**: `elli_charger_ha`; pip-audit packages: `elli-client==1.4.0`
 - **Brand**: `custom_components/elli_charger_ha/brand/icon.png` + `brands/icon.png` (512×512 PNG)
 - **`.releaserc.json`** `prepareCmd` path: `custom_components/elli_charger_ha/manifest.json`
 - **Auth**: uses email/password (cloud API), not host/IP — config flow does not validate IP
