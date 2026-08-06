@@ -58,7 +58,15 @@ Each RFID card linked to the account is exposed under an **Elli Account** device
 1. Go to **Settings** → **Devices & Services**
 2. Click **+ Add Integration**
 3. Search for **Elli Charger**
-4. Enter your Elli account credentials (email and password)
+4. Follow the link shown in the dialog to sign in to your Elli account in a new browser tab
+5. After signing in, the browser tries to open an address starting with `com.elli.ios.emsp://` and shows an error — this is expected
+6. Copy that complete address from the browser's address bar and paste it back into the dialog
+
+Elli requires an interactive browser login (Cloudflare Turnstile), so the integration
+cannot accept an email and password directly. The redirect target is the Elli iOS app's
+custom URL scheme, which Home Assistant cannot receive — hence the manual copy step.
+Home Assistant stores the resulting refresh token in the config entry and renews it
+automatically; you only repeat this when the token is revoked or expires.
 
 ### Options
 

@@ -3,23 +3,23 @@
     "step": {
       "user": {
         "title": "Elli Ladestation Einrichtung",
-        "description": "Geben Sie Ihre Elli-Zugangsdaten ein",
+        "description": "1. Öffnen Sie die [Elli-Anmeldeseite]({authorization_url}) in einem neuen Browser-Tab und melden Sie sich an.\n2. Nach der Anmeldung versucht der Browser, einen Link zu öffnen, der mit `com.elli.ios.emsp://` beginnt, und zeigt einen Fehler. Das ist so erwartet.\n3. Kopieren Sie diese vollständige Adresse aus der Adresszeile des Browsers und fügen Sie sie unten ein.",
         "data": {
-          "email": "E-Mail",
-          "password": "Passwort"
+          "callback_url": "Callback-URL"
         }
       },
       "reauth_confirm": {
         "title": "Elli Ladestation erneut authentifizieren",
-        "description": "Ihre Elli-Zugangsdaten sind nicht mehr gültig. Bitte geben Sie Ihr Passwort erneut ein.",
+        "description": "Ihre Elli-Anmeldung ist abgelaufen.\n\n1. Öffnen Sie die [Elli-Anmeldeseite]({authorization_url}) in einem neuen Browser-Tab und melden Sie sich an.\n2. Nach der Anmeldung versucht der Browser, einen Link zu öffnen, der mit `com.elli.ios.emsp://` beginnt, und zeigt einen Fehler. Das ist so erwartet.\n3. Kopieren Sie diese vollständige Adresse aus der Adresszeile des Browsers und fügen Sie sie unten ein.",
         "data": {
-          "password": "Passwort"
+          "callback_url": "Callback-URL"
         }
       }
     },
     "error": {
       "cannot_connect": "Verbindung zur Elli API fehlgeschlagen",
-      "invalid_auth": "Ungültige E-Mail oder Passwort",
+      "invalid_auth": "Elli hat die Anmeldung abgelehnt. Bitte starten Sie die Anmeldung erneut.",
+      "invalid_callback": "Das sieht nicht nach einer gültigen Callback-Adresse aus. Kopieren Sie die vollständige Adresse, die mit com.elli.ios.emsp:// beginnt.",
       "unknown": "Ein unerwarteter Fehler ist aufgetreten"
     },
     "abort": {

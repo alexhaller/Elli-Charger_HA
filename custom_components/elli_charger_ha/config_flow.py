@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import base64
+import json
 import logging
 from typing import Any
 
@@ -9,28 +11,55 @@ import voluptuous as vol
 
 from homeassistant import config_entries
 from homeassistant.config_entries import ConfigFlowResult
-from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
 from homeassistant.core import callback
 from homeassistant.exceptions import HomeAssistantError
 
-from elli_client import ElliAPIClient  # type: ignore[import-untyped,import-not-found]
+from elli_client import (  # type: ignore[import-untyped,import-not-found]
+    AuthenticationError,
+    ElliAPIClient,
+    InvalidOAuthCallback,
+)
+from elli_client.models import TokenResponse  # type: ignore[import-untyped,import-not-found]
 
-from .const import CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL, DOMAIN
+from .const import (
+    CONF_CALLBACK_URL,
+    CONF_REFRESH_TOKEN,
+    CONF_SCAN_INTERVAL,
+    DEFAULT_SCAN_INTERVAL,
+    DOMAIN,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
-STEP_USER_DATA_SCHEMA = vol.Schema(
-    {
-        vol.Required(CONF_EMAIL): str,
-        vol.Required(CONF_PASSWORD): str,
-    }
-)
+STEP_CALLBACK_DATA_SCHEMA = vol.Schema({vol.Required(CONF_CALLBACK_URL): str})
+
+
+def _account_subject(id_token: str | None) -> str | None:
+    """Return the OpenID subject claim of an ID token, without verifying it."""
+    if not id_token:
+        return None
+    parts = id_token.split(".")
+    if len(parts) != 3:
+        return None
+    payload = parts[1] + "=" * (-len(parts[1]) % 4)
+    try:
+        claims = json.loads(base64.urlsafe_b64decode(payload))
+    except ValueError:
+        return None
+    subject = claims.get("sub")
+    return subject if isinstance(subject, str) else None
 
 
 class ElliConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Elli Charger."""
 
-    VERSION = 1
+    VERSION = 2
+
+    def __init__(self) -> None:
+        """Initialize the flow."""
+        # elli_client ships no types to mypy here, so these are plain Any.
+        self._client: Any = None
+        self._authorization: Any = None
 
     @staticmethod
     @callback
@@ -48,34 +77,29 @@ class ElliConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         if user_input is not None:
             try:
-                await self._test_credentials(
-                    user_input[CONF_EMAIL],
-                    user_input[CONF_PASSWORD],
-                )
-            except CannotConnect:
-                errors["base"] = "cannot_connect"
+                tokens = await self._exchange(user_input[CONF_CALLBACK_URL])
+            except InvalidCallback:
+                errors["base"] = "invalid_callback"
             except InvalidAuth:
                 errors["base"] = "invalid_auth"
+            except CannotConnect:
+                errors["base"] = "cannot_connect"
             except Exception:
                 _LOGGER.exception("Unexpected exception during config flow")
                 errors["base"] = "unknown"
             else:
-                await self.async_set_unique_id(user_input[CONF_EMAIL])
+                await self.async_set_unique_id(_account_subject(tokens.id_token))
                 self._abort_if_unique_id_configured()
 
                 return self.async_create_entry(
-                    title=f"Elli ({user_input[CONF_EMAIL]})",
-                    data=user_input,
+                    title="Elli",
+                    data={CONF_REFRESH_TOKEN: tokens.refresh_token},
                 )
 
-        return self.async_show_form(
-            step_id="user",
-            data_schema=STEP_USER_DATA_SCHEMA,
-            errors=errors,
-        )
+        return await self._async_show_authorization_form("user", errors)
 
     async def async_step_reauth(
-        self, user_input: dict[str, Any] | None = None
+        self, entry_data: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         """Handle re-authentication."""
         return await self.async_step_reauth_confirm()
@@ -87,46 +111,70 @@ class ElliConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors: dict[str, str] = {}
 
         if user_input is not None:
-            reauth_entry = self._get_reauth_entry()
             try:
-                await self._test_credentials(
-                    reauth_entry.data[CONF_EMAIL],
-                    user_input[CONF_PASSWORD],
-                )
-            except CannotConnect:
-                errors["base"] = "cannot_connect"
+                tokens = await self._exchange(user_input[CONF_CALLBACK_URL])
+            except InvalidCallback:
+                errors["base"] = "invalid_callback"
             except InvalidAuth:
                 errors["base"] = "invalid_auth"
+            except CannotConnect:
+                errors["base"] = "cannot_connect"
             except Exception:
                 _LOGGER.exception("Unexpected exception during re-auth")
                 errors["base"] = "unknown"
             else:
+                reauth_entry = self._get_reauth_entry()
                 return self.async_update_reload_and_abort(
                     reauth_entry,
                     data={
                         **reauth_entry.data,
-                        CONF_PASSWORD: user_input[CONF_PASSWORD],
+                        CONF_REFRESH_TOKEN: tokens.refresh_token,
                     },
                 )
 
+        return await self._async_show_authorization_form("reauth_confirm", errors)
+
+    async def _async_show_authorization_form(
+        self, step_id: str, errors: dict[str, str]
+    ) -> ConfigFlowResult:
+        """Show the form that carries the authorization URL."""
+        if self._client is None:
+            self._client = await self.hass.async_add_executor_job(ElliAPIClient)
+        if self._authorization is None:
+            # create_authorization() only derives PKCE values; it does no I/O.
+            self._authorization = self._client.create_authorization()
+
         return self.async_show_form(
-            step_id="reauth_confirm",
-            data_schema=vol.Schema({vol.Required(CONF_PASSWORD): str}),
+            step_id=step_id,
+            data_schema=STEP_CALLBACK_DATA_SCHEMA,
             errors=errors,
+            description_placeholders={
+                "authorization_url": self._authorization.authorization_url
+            },
         )
 
-    async def _test_credentials(self, email: str, password: str) -> None:
-        """Validate credentials."""
+    async def _exchange(self, callback_url: str) -> TokenResponse:
+        """Exchange an OAuth callback URL for tokens."""
+        if self._client is None or self._authorization is None:
+            raise CannotConnect("No authorization session in progress")
+
         try:
-            client = ElliAPIClient()
-            await self.hass.async_add_executor_job(client.login, email, password)
-            client.close()
-        except ValueError as err:
-            if "401" in str(err) or "authorization code" in str(err).lower():
-                raise InvalidAuth from err
-            raise CannotConnect from err
+            tokens: TokenResponse = await self.hass.async_add_executor_job(
+                self._client.exchange_callback,
+                callback_url.strip(),
+                self._authorization,
+            )
+        except InvalidOAuthCallback as err:
+            raise InvalidCallback from err
+        except AuthenticationError as err:
+            raise InvalidAuth from err
         except Exception as err:
             raise CannotConnect from err
+
+        if not tokens.refresh_token:
+            raise InvalidAuth("Elli did not return a refresh token")
+
+        return tokens
 
 
 class CannotConnect(HomeAssistantError):
@@ -134,7 +182,11 @@ class CannotConnect(HomeAssistantError):
 
 
 class InvalidAuth(HomeAssistantError):
-    """Error to indicate there is invalid auth."""
+    """Error to indicate the authorization was rejected."""
+
+
+class InvalidCallback(HomeAssistantError):
+    """Error to indicate the pasted callback URL is not usable."""
 
 
 class ElliOptionsFlowHandler(config_entries.OptionsFlow):

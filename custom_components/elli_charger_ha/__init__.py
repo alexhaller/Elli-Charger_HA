@@ -3,16 +3,15 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Mapping
 from datetime import timedelta
-from typing import Any, override
+from typing import override
 
 import voluptuous as vol
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_EMAIL, CONF_PASSWORD, Platform
+from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, ServiceCall
-from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
+from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import (
     CoordinatorEntity,
@@ -20,10 +19,18 @@ from homeassistant.helpers.update_coordinator import (
     UpdateFailed,
 )
 
-from elli_client import ElliAPIClient  # type: ignore[import-untyped,import-not-found]
+from elli_client import (  # type: ignore[import-untyped,import-not-found]
+    ElliAPIClient,
+    ReauthenticationRequired,
+)
 from elli_client.models import ChargingSession  # type: ignore[import-untyped,import-not-found]
 
-from .const import CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL, DOMAIN
+from .const import (
+    CONF_REFRESH_TOKEN,
+    CONF_SCAN_INTERVAL,
+    DEFAULT_SCAN_INTERVAL,
+    DOMAIN,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -36,28 +43,32 @@ PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.BINARY_SENSOR]
 type ElliCoordinator = DataUpdateCoordinator[dict]
 
 
+async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Migrate an old config entry.
+
+    Version 1 stored an email and password. Elli now requires an interactive
+    browser authorization, so those credentials cannot be converted into a
+    refresh token here; the entry is stripped and setup triggers re-auth.
+    """
+    if entry.version == 1:
+        hass.config_entries.async_update_entry(entry, data={}, version=2)
+
+    return True
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Elli Charger from a config entry."""
     hass.data.setdefault(DOMAIN, {})
 
-    client = await hass.async_add_executor_job(ElliAPIClient)
+    refresh_token = entry.data.get(CONF_REFRESH_TOKEN)
+    if not refresh_token:
+        raise ConfigEntryAuthFailed("Browser authorization required")
 
-    try:
-        await hass.async_add_executor_job(
-            client.login,
-            entry.data[CONF_EMAIL],
-            entry.data[CONF_PASSWORD],
-        )
-    except ValueError as err:
-        if "401" in str(err) or "authorization code" in str(err).lower():
-            raise ConfigEntryAuthFailed("Invalid credentials") from err
-        raise ConfigEntryNotReady("Could not connect to Elli API") from err
-    except Exception as err:
-        raise ConfigEntryNotReady("Could not connect to Elli API") from err
+    client = await hass.async_add_executor_job(ElliAPIClient)
 
     scan_interval = entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
     coordinator = ElliDataUpdateCoordinator(
-        hass, client, entry.data, timedelta(minutes=scan_interval)
+        hass, client, entry, timedelta(minutes=scan_interval)
     )
 
     await coordinator.async_config_entry_first_refresh()
@@ -116,7 +127,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 
 async def _async_options_updated(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Reload the integration when options change."""
+    """Reload the integration when the polling interval changes.
+
+    The listener also fires when a rotated refresh token is written back to the
+    entry, so reload only when the interval actually differs.
+    """
+    coordinator: ElliDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
+    scan_interval = entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
+    if coordinator.update_interval == timedelta(minutes=scan_interval):
+        return
+
     await hass.config_entries.async_reload(entry.entry_id)
 
 
@@ -144,7 +164,7 @@ class ElliDataUpdateCoordinator(DataUpdateCoordinator[dict]):
         self,
         hass: HomeAssistant,
         client: ElliAPIClient,
-        config_data: Mapping[str, Any],
+        entry: ConfigEntry,
         update_interval: timedelta,
     ) -> None:
         """Initialize the coordinator."""
@@ -155,24 +175,38 @@ class ElliDataUpdateCoordinator(DataUpdateCoordinator[dict]):
             update_interval=update_interval,
         )
         self.client = client
-        self._email = config_data[CONF_EMAIL]
-        self._password = config_data[CONF_PASSWORD]
+        self._entry = entry
+
+    async def async_authenticate(self) -> None:
+        """Exchange the stored refresh token for a usable access token."""
+        stored_token = self._entry.data[CONF_REFRESH_TOKEN]
+        try:
+            tokens = await self.hass.async_add_executor_job(
+                self.client.refresh, stored_token
+            )
+        except ReauthenticationRequired as err:
+            raise ConfigEntryAuthFailed("Refresh token is no longer valid") from err
+        except Exception as err:
+            raise UpdateFailed(f"Could not refresh Elli tokens: {err}") from err
+
+        self.client.set_tokens(tokens)
+
+        # Elli rotates refresh tokens, so persist a new one when it changes.
+        if tokens.refresh_token != stored_token:
+            self.hass.config_entries.async_update_entry(
+                self._entry,
+                data={**self._entry.data, CONF_REFRESH_TOKEN: tokens.refresh_token},
+            )
 
     @override
     async def _async_update_data(self) -> dict:
         """Fetch data from API endpoint."""
         try:
-            if not self.client.access_token:
-                await self.hass.async_add_executor_job(
-                    self.client.login, self._email, self._password
-                )
             return await self._fetch_data()
         except Exception as err:
-            _LOGGER.debug("API call failed, re-authenticating: %s", err)
+            _LOGGER.debug("API call failed, refreshing tokens: %s", err)
+            await self.async_authenticate()
             try:
-                await self.hass.async_add_executor_job(
-                    self.client.login, self._email, self._password
-                )
                 return await self._fetch_data()
             except Exception as retry_err:
                 raise UpdateFailed(

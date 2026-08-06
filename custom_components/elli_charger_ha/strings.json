@@ -3,23 +3,23 @@
     "step": {
       "user": {
         "title": "Elli Charger Setup",
-        "description": "Enter your Elli account credentials",
+        "description": "1. Open the [Elli login page]({authorization_url}) in a new browser tab and sign in.\n2. After signing in, the browser tries to open a link starting with `com.elli.ios.emsp://` and shows an error. That is expected.\n3. Copy that complete address from the browser's address bar and paste it below.",
         "data": {
-          "email": "Email",
-          "password": "Password"
+          "callback_url": "Callback URL"
         }
       },
       "reauth_confirm": {
         "title": "Re-authenticate Elli Charger",
-        "description": "Your Elli credentials are no longer valid. Please enter your password again.",
+        "description": "Your Elli authorization has expired.\n\n1. Open the [Elli login page]({authorization_url}) in a new browser tab and sign in.\n2. After signing in, the browser tries to open a link starting with `com.elli.ios.emsp://` and shows an error. That is expected.\n3. Copy that complete address from the browser's address bar and paste it below.",
         "data": {
-          "password": "Password"
+          "callback_url": "Callback URL"
         }
       }
     },
     "error": {
       "cannot_connect": "Failed to connect to Elli API",
-      "invalid_auth": "Invalid email or password",
+      "invalid_auth": "Elli rejected the authorization. Please start the sign-in again.",
+      "invalid_callback": "That does not look like a valid callback address. Copy the complete address starting with com.elli.ios.emsp://",
       "unknown": "Unexpected error occurred"
     },
     "abort": {
