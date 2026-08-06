@@ -21,8 +21,8 @@ from homeassistant.helpers.update_coordinator import (
     DataUpdateCoordinator,
 )
 
-from .const import DOMAIN
 from . import ElliBaseEntity, ElliCoordinator
+from .const import DOMAIN
 
 PARALLEL_UPDATES = 0
 

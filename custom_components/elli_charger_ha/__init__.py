@@ -7,7 +7,11 @@ from datetime import timedelta
 from typing import override
 
 import voluptuous as vol
-
+from elli_client import (  # type: ignore[import-not-found]
+    ElliAPIClient,
+    ReauthenticationRequired,
+)
+from elli_client.models import ChargingSession  # type: ignore[import-not-found]
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, ServiceCall
@@ -18,12 +22,6 @@ from homeassistant.helpers.update_coordinator import (
     DataUpdateCoordinator,
     UpdateFailed,
 )
-
-from elli_client import (  # type: ignore[import-untyped,import-not-found]
-    ElliAPIClient,
-    ReauthenticationRequired,
-)
-from elli_client.models import ChargingSession  # type: ignore[import-untyped,import-not-found]
 
 from .const import (
     CONF_REFRESH_TOKEN,
@@ -203,7 +201,7 @@ class ElliDataUpdateCoordinator(DataUpdateCoordinator[dict]):
         """Fetch data from API endpoint."""
         try:
             return await self._fetch_data()
-        except Exception as err:
+        except Exception as err:  # noqa: BLE001 - any failure should trigger a retry
             _LOGGER.debug("API call failed, refreshing tokens: %s", err)
             await self.async_authenticate()
             try:
@@ -225,7 +223,7 @@ class ElliDataUpdateCoordinator(DataUpdateCoordinator[dict]):
             rfid_cards = await self.hass.async_add_executor_job(
                 self.client.get_rfid_cards
             )
-        except Exception as err:
+        except Exception as err:  # noqa: BLE001 - RFID cards are optional data
             _LOGGER.warning("Could not fetch RFID cards: %s", err)
             rfid_cards = []
 
@@ -250,7 +248,7 @@ class ElliDataUpdateCoordinator(DataUpdateCoordinator[dict]):
                 if station.id in firmware_map:
                     station.installed_firmware = firmware_map[station.id]
                     station.firmware_version = firmware_map[station.id].version
-        except Exception as fw_err:
+        except Exception as fw_err:  # noqa: BLE001 - firmware info is optional data
             _LOGGER.warning("Could not fetch firmware info: %s", fw_err)
 
 
@@ -286,12 +284,10 @@ class ElliBaseEntity(CoordinatorEntity[ElliCoordinator]):
             return False
         if session.charging_state and "charging" in session.charging_state.lower():
             return True
-        if (
+        return bool(
             session.momentary_charging_speed_watts
             and session.momentary_charging_speed_watts > 0
-        ):
-            return True
-        return False
+        )
 
     @override
     @property

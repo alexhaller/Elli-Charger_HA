@@ -8,18 +8,16 @@ import logging
 from typing import Any
 
 import voluptuous as vol
-
-from homeassistant import config_entries
-from homeassistant.config_entries import ConfigFlowResult
-from homeassistant.core import callback
-from homeassistant.exceptions import HomeAssistantError
-
-from elli_client import (  # type: ignore[import-untyped,import-not-found]
+from elli_client import (  # type: ignore[import-not-found]
     AuthenticationError,
     ElliAPIClient,
     InvalidOAuthCallback,
 )
-from elli_client.models import TokenResponse  # type: ignore[import-untyped,import-not-found]
+from elli_client.models import TokenResponse  # type: ignore[import-not-found]
+from homeassistant import config_entries
+from homeassistant.config_entries import ConfigFlowResult
+from homeassistant.core import callback
+from homeassistant.exceptions import HomeAssistantError
 
 from .const import (
     CONF_CALLBACK_URL,
