@@ -37,6 +37,14 @@ Key files:
   refresh token back via `async_update_entry`. Because that fires the entry update
   listener, `_async_options_updated` reloads **only** when the scan interval actually
   changed — otherwise every token rotation would reload the integration in a loop.
+- **Only re-authenticate on auth errors.** `_async_update_data` renews the token and
+  repeats the fetch only when `_is_auth_error()` says so (`AuthenticationError`, or a
+  `ValueError` reading "Not authenticated" / ": 401 "). Never on timeouts: the Elli
+  `/stations` endpoint has been observed hanging for the full 30 s client timeout, and
+  retrying the whole round doubled every poll to 60 s **and** burned a refresh token
+  rotation each time — which risks tripping Auth0's reuse detection and revoking the
+  token family. The client raises a plain `ValueError` for API failures, so the status
+  code is only available as message text; there is no cleaner discriminator.
 - **Config entry unique ID**: the `sub` claim of the OAuth `id_token` (decoded, not
   verified — it arrives over TLS from our own PKCE exchange). Entity unique IDs are
   unaffected and stay rooted on `station.id`.

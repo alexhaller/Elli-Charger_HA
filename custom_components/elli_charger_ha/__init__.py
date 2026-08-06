@@ -8,6 +8,7 @@ from typing import override
 
 import voluptuous as vol
 from elli_client import (  # type: ignore[import-not-found]
+    AuthenticationError,
     ElliAPIClient,
     ReauthenticationRequired,
 )
@@ -15,7 +16,7 @@ from elli_client.models import ChargingSession  # type: ignore[import-not-found]
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, ServiceCall
-from homeassistant.exceptions import ConfigEntryAuthFailed
+from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import (
     CoordinatorEntity,
@@ -39,6 +40,22 @@ ChargingSession.model_rebuild(force=True)
 PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.BINARY_SENSOR]
 
 type ElliCoordinator = DataUpdateCoordinator[dict]
+
+
+def _is_auth_error(err: BaseException) -> bool:
+    """Return True if an error means the access token has to be renewed.
+
+    The client raises a plain ValueError for API failures, so the HTTP status
+    can only be recovered from the message text. Anything else -- a timeout in
+    particular -- must not trigger a token refresh: that would burn a refresh
+    token rotation and repeat the whole request round for nothing.
+    """
+    if isinstance(err, AuthenticationError):
+        return True
+    if not isinstance(err, ValueError):
+        return False
+    message = str(err)
+    return "Not authenticated" in message or ": 401 " in message
 
 
 async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -69,7 +86,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass, client, entry, timedelta(minutes=scan_interval)
     )
 
-    await coordinator.async_config_entry_first_refresh()
+    try:
+        # Get an access token up front, so the first poll does not have to run
+        # into a deliberate "not authenticated" failure to obtain one.
+        await coordinator.async_authenticate()
+        await coordinator.async_config_entry_first_refresh()
+    except UpdateFailed as err:
+        await hass.async_add_executor_job(client.close)
+        raise ConfigEntryNotReady(str(err)) from err
+    except Exception:
+        # Setup is retried with a fresh client; do not leak this one.
+        await hass.async_add_executor_job(client.close)
+        raise
 
     hass.data[DOMAIN][entry.entry_id] = coordinator
 
@@ -201,15 +229,18 @@ class ElliDataUpdateCoordinator(DataUpdateCoordinator[dict]):
         """Fetch data from API endpoint."""
         try:
             return await self._fetch_data()
-        except Exception as err:  # noqa: BLE001 - any failure should trigger a retry
-            _LOGGER.debug("API call failed, refreshing tokens: %s", err)
-            await self.async_authenticate()
-            try:
-                return await self._fetch_data()
-            except Exception as retry_err:
-                raise UpdateFailed(
-                    f"Error communicating with API: {retry_err}"
-                ) from retry_err
+        except Exception as err:
+            if not _is_auth_error(err):
+                raise UpdateFailed(f"Error communicating with API: {err}") from err
+            _LOGGER.debug("Access token rejected, renewing it: %s", err)
+
+        await self.async_authenticate()
+        try:
+            return await self._fetch_data()
+        except Exception as retry_err:
+            raise UpdateFailed(
+                f"Error communicating with API: {retry_err}"
+            ) from retry_err
 
     async def _fetch_data(self) -> dict:
         """Fetch sessions, stations, RFID cards and accumulated data from the API."""
