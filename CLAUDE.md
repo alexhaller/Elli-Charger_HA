@@ -19,6 +19,12 @@ Key files:
 - **Domain**: `elli_charger_ha`; pip-audit packages: `elli-client==1.5.0`
 - **Brand**: `custom_components/elli_charger_ha/brand/icon.png` + `brands/icon.png` (512×512 PNG)
 - **`.releaserc.json`** `prepareCmd` path: `custom_components/elli_charger_ha/manifest.json`
+- **CI tool versions**: `validate.yml` lints on Python 3.14 and pins `ruff==0.16.1` and
+  `mypy==2.3.0`. Deviation from the global "CLI defaults" rule, on purpose: ruff 0.16
+  promoted `I001`, `BLE001` and `SIM103` into its default rule set and broke a previously
+  green build with no code change. Home Assistant requires Python >= 3.14.2, so an older
+  runner silently resolves to an ancient `homeassistant` and mypy checks against a stale
+  API. Keep the local ruff/mypy at these versions too, or local and CI disagree.
 - **Auth**: OAuth2 PKCE against `login.elli.eco`, not host/IP. `login(email, password)` is
   deprecated upstream and unreliable (Cloudflare Turnstile) — do not reintroduce it. The
   OAuth client's `redirect_uri` is the Elli iOS custom scheme

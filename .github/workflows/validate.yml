@@ -35,10 +35,12 @@ jobs:
 
       - uses: actions/setup-python@v6
         with:
-          python-version: "3.12"
+          python-version: "3.14"
 
+      # ruff and mypy are pinned: both promote new checks in minor releases,
+      # which silently turns a green build red. Bump them deliberately.
       - name: Install dependencies
-        run: pip install ruff mypy pip-audit homeassistant elli-client
+        run: pip install ruff==0.16.1 mypy==2.3.0 pip-audit homeassistant elli-client
 
       - name: ruff check
         run: ruff check .
