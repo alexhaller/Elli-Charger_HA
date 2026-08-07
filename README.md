@@ -58,15 +58,30 @@ Each RFID card linked to the account is exposed under an **Elli Account** device
 1. Go to **Settings** → **Devices & Services**
 2. Click **+ Add Integration**
 3. Search for **Elli Charger**
-4. Follow the link shown in the dialog to sign in to your Elli account in a new browser tab
-5. After signing in, the browser tries to open an address starting with `com.elli.ios.emsp://` and shows an error — this is expected
-6. Copy that complete address from the browser's address bar and paste it back into the dialog
+4. Open the sign-in link shown in the dialog in a **new browser tab**
+5. In that new tab press **F12** to open the developer tools and switch to the **Console** tab
+6. Now sign in. The page will appear to do nothing, and the console shows an error containing a
+   link that starts with `com.elli.ios.emsp://`
+7. Copy that link **completely** — including `com.elli.ios.emsp://` and everything after the `?` —
+   and paste it back into the dialog
 
-Elli requires an interactive browser login (Cloudflare Turnstile), so the integration
-cannot accept an email and password directly. The redirect target is the Elli iOS app's
-custom URL scheme, which Home Assistant cannot receive — hence the manual copy step.
-Home Assistant stores the resulting refresh token in the config entry and renews it
-automatically; you only repeat this when the token is revoked or expires.
+If the console stays empty, use the **Network** tab instead: tick **Preserve log**, sign in again,
+select the last entry and copy the `Location` value from its response headers.
+
+Use a desktop browser (Chrome, Edge or Firefox); this cannot be done on a phone. Leave the Home
+Assistant dialog open while you do it, because the link belongs to that dialog and is short-lived.
+
+### Why the manual copy step
+
+Elli requires an interactive browser login (Cloudflare Turnstile), so the integration cannot accept
+an email and password directly. The OAuth client's redirect target is the Elli iOS app's custom URL
+scheme, which is registered at Elli's identity provider and cannot be changed — an `https://`
+callback or Home Assistant's own OAuth callback are both rejected. Your browser therefore cannot
+load the final address, which is why it never appears in the address bar and has to be read from
+the developer tools.
+
+Home Assistant stores the resulting refresh token in the config entry and renews it automatically;
+you only repeat this when the token is revoked or expires.
 
 ### Options
 

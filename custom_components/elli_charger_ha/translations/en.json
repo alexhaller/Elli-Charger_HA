@@ -3,14 +3,14 @@
     "step": {
       "user": {
         "title": "Elli Charger Setup",
-        "description": "1. Open the [Elli login page]({authorization_url}) in a new browser tab and sign in.\n2. After signing in, the browser tries to open a link starting with `com.elli.ios.emsp://` and shows an error. That is expected.\n3. Copy that complete address from the browser's address bar and paste it below.",
+        "description": "Elli requires a browser sign-in. The last step of it redirects to the Elli iOS app, which your browser cannot open, so the address never appears in the address bar and has to be read from the developer tools.\n\n**Use a desktop browser** (Chrome, Edge or Firefox). This cannot be done on a phone.\n\n1. Open the [Elli sign-in page]({authorization_url}) in a **new tab**.\n2. In that new tab press **F12** to open the developer tools, and switch to the **Console** tab.\n3. Now sign in.\n4. The page will appear to do nothing. In the console an error appears that contains a link starting with `com.elli.ios.emsp://`.\n5. Copy that link **completely**, including `com.elli.ios.emsp://` and everything after the `?`, and paste it below.\n\nIf the console stays empty, use the **Network** tab instead: tick **Preserve log**, sign in again, select the last entry and copy the `Location` value from its response headers.\n\nLeave this dialog open while you do it. The link belongs to this dialog only and is valid just for a few moments.",
         "data": {
           "callback_url": "Callback URL"
         }
       },
       "reauth_confirm": {
         "title": "Re-authenticate Elli Charger",
-        "description": "Your Elli authorization has expired.\n\n1. Open the [Elli login page]({authorization_url}) in a new browser tab and sign in.\n2. After signing in, the browser tries to open a link starting with `com.elli.ios.emsp://` and shows an error. That is expected.\n3. Copy that complete address from the browser's address bar and paste it below.",
+        "description": "Your Elli authorization has expired and has to be renewed in the browser.\n\n**Use a desktop browser** (Chrome, Edge or Firefox). This cannot be done on a phone.\n\n1. Open the [Elli sign-in page]({authorization_url}) in a **new tab**.\n2. In that new tab press **F12** to open the developer tools, and switch to the **Console** tab.\n3. Now sign in.\n4. The page will appear to do nothing. In the console an error appears that contains a link starting with `com.elli.ios.emsp://`.\n5. Copy that link **completely**, including `com.elli.ios.emsp://` and everything after the `?`, and paste it below.\n\nIf the console stays empty, use the **Network** tab instead: tick **Preserve log**, sign in again, select the last entry and copy the `Location` value from its response headers.\n\nLeave this dialog open while you do it. The link belongs to this dialog only and is valid just for a few moments.",
         "data": {
           "callback_url": "Callback URL"
         }
@@ -19,7 +19,7 @@
     "error": {
       "cannot_connect": "Failed to connect to Elli API",
       "invalid_auth": "Elli rejected the authorization. Please start the sign-in again.",
-      "invalid_callback": "That does not look like a valid callback address. Copy the complete address starting with com.elli.ios.emsp://",
+      "invalid_callback": "That does not look like a valid callback address. Copy the complete link, starting with com.elli.ios.emsp:// and including everything after the ?",
       "unknown": "Unexpected error occurred"
     },
     "abort": {
