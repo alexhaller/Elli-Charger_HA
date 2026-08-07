@@ -1,3 +1,9 @@
+## [2.0.5](https://github.com/alexhaller/Elli-Charger_HA/compare/v2.0.4...v2.0.5) (2026-08-07)
+
+### Bug Fixes
+
+* warn once per firmware outage, and pin the changelog preset ([ca996ec](https://github.com/alexhaller/Elli-Charger_HA/commit/ca996ec5aafbcc979227c16333033e7bd5fcded7))
+
 ## [2.0.4](https://github.com/alexhaller/Elli-Charger_HA/compare/v2.0.3...v2.0.4) (2026-08-07)
 
 ## [2.0.3](https://github.com/alexhaller/Elli-Charger_HA/compare/v2.0.2...v2.0.3) (2026-08-07)
