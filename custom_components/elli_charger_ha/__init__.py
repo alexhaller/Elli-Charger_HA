@@ -204,6 +204,7 @@ class ElliDataUpdateCoordinator(DataUpdateCoordinator[dict]):
         )
         self.client = client
         self._entry = entry
+        self._firmware_warned = False
 
     async def async_authenticate(self) -> None:
         """Exchange the stored refresh token for a usable access token."""
@@ -272,23 +273,46 @@ class ElliDataUpdateCoordinator(DataUpdateCoordinator[dict]):
         }
 
     async def _merge_firmware_info(self, stations: list) -> None:
-        """Fetch firmware info and merge it into the station list."""
+        """Fetch firmware info and merge it into the station list.
+
+        Enrichment only: /stations already carries firmware_version. The
+        firmware endpoint adds the detailed installed_firmware object, and has
+        been observed answering 500 FETCH_FIRMWARE_FAILURE for days at a time,
+        so a failure here must never cost more than that extra detail.
+        """
         try:
             firmware_stations = await self._timed(
                 "get_firmware_info", self.client.get_firmware_info
             )
-            _LOGGER.debug("Firmware endpoint returned: %s", firmware_stations)
-            firmware_map = {
-                s.id: s.installed_firmware
-                for s in firmware_stations
-                if s.installed_firmware
-            }
-            for station in stations:
-                if station.id in firmware_map:
-                    station.installed_firmware = firmware_map[station.id]
-                    station.firmware_version = firmware_map[station.id].version
         except Exception as fw_err:  # noqa: BLE001 - firmware info is optional data
-            _LOGGER.warning("Could not fetch firmware info: %s", fw_err)
+            # Warn once per outage instead of on every poll, which at the
+            # default five-minute interval would fill the log.
+            if not self._firmware_warned:
+                self._firmware_warned = True
+                _LOGGER.warning(
+                    "Could not fetch firmware info, continuing without the "
+                    "detailed firmware data (further failures logged at debug "
+                    "until it recovers): %s",
+                    fw_err,
+                )
+            else:
+                _LOGGER.debug("Firmware info still unavailable: %s", fw_err)
+            return
+
+        if self._firmware_warned:
+            self._firmware_warned = False
+            _LOGGER.info("Firmware info is available again")
+
+        _LOGGER.debug("Firmware endpoint returned: %s", firmware_stations)
+        firmware_map = {
+            s.id: s.installed_firmware
+            for s in firmware_stations
+            if s.installed_firmware
+        }
+        for station in stations:
+            if station.id in firmware_map:
+                station.installed_firmware = firmware_map[station.id]
+                station.firmware_version = firmware_map[station.id].version
 
 
 class ElliBaseEntity(CoordinatorEntity[ElliCoordinator]):
