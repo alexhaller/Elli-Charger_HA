@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from datetime import timedelta
-from typing import override
+from time import monotonic
+from typing import Any, override
 
 import voluptuous as vol
 from elli_client import (  # type: ignore[import-not-found]
@@ -207,9 +209,7 @@ class ElliDataUpdateCoordinator(DataUpdateCoordinator[dict]):
         """Exchange the stored refresh token for a usable access token."""
         stored_token = self._entry.data[CONF_REFRESH_TOKEN]
         try:
-            tokens = await self.hass.async_add_executor_job(
-                self.client.refresh, stored_token
-            )
+            tokens = await self._timed("refresh", self.client.refresh, stored_token)
         except ReauthenticationRequired as err:
             raise ConfigEntryAuthFailed("Refresh token is no longer valid") from err
         except Exception as err:
@@ -242,18 +242,25 @@ class ElliDataUpdateCoordinator(DataUpdateCoordinator[dict]):
                 f"Error communicating with API: {retry_err}"
             ) from retry_err
 
+    async def _timed(self, label: str, func: Callable[..., Any], *args: Any) -> Any:
+        """Run a blocking client call in the executor and log how long it took."""
+        started = monotonic()
+        try:
+            return await self.hass.async_add_executor_job(func, *args)
+        finally:
+            _LOGGER.debug("%s took %.1f s", label, monotonic() - started)
+
     async def _fetch_data(self) -> dict:
         """Fetch sessions, stations, RFID cards and accumulated data from the API."""
-        sessions = await self.hass.async_add_executor_job(
-            self.client.get_charging_sessions
+        sessions = await self._timed(
+            "get_charging_sessions", self.client.get_charging_sessions
         )
-        stations = await self.hass.async_add_executor_job(self.client.get_stations)
+        stations = await self._timed("get_stations", self.client.get_stations)
+        _LOGGER.debug("Stations as parsed from the API: %s", stations)
         await self._merge_firmware_info(stations)
 
         try:
-            rfid_cards = await self.hass.async_add_executor_job(
-                self.client.get_rfid_cards
-            )
+            rfid_cards = await self._timed("get_rfid_cards", self.client.get_rfid_cards)
         except Exception as err:  # noqa: BLE001 - RFID cards are optional data
             _LOGGER.warning("Could not fetch RFID cards: %s", err)
             rfid_cards = []
@@ -267,9 +274,10 @@ class ElliDataUpdateCoordinator(DataUpdateCoordinator[dict]):
     async def _merge_firmware_info(self, stations: list) -> None:
         """Fetch firmware info and merge it into the station list."""
         try:
-            firmware_stations = await self.hass.async_add_executor_job(
-                self.client.get_firmware_info
+            firmware_stations = await self._timed(
+                "get_firmware_info", self.client.get_firmware_info
             )
+            _LOGGER.debug("Firmware endpoint returned: %s", firmware_stations)
             firmware_map = {
                 s.id: s.installed_firmware
                 for s in firmware_stations
