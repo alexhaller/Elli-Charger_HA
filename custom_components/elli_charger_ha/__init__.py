@@ -8,7 +8,7 @@ from datetime import timedelta
 from time import monotonic
 from typing import Any, override
 
-import voluptuous as vol
+import probatio
 from elli_client import (  # type: ignore[import-not-found]
     AuthenticationError,
     ElliAPIClient,
@@ -137,14 +137,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             DOMAIN,
             "download_charging_records",
             handle_download_charging_records,
-            schema=vol.Schema(
+            schema=probatio.Schema(
                 {
-                    vol.Required("station_id"): str,
-                    vol.Required("rfid_card_id"): str,
-                    vol.Required("created_at_after"): str,
-                    vol.Required("created_at_before"): str,
-                    vol.Optional("pdf_timezone", default="Europe/Berlin"): str,
-                    vol.Optional(
+                    probatio.Required("station_id"): str,
+                    probatio.Required("rfid_card_id"): str,
+                    probatio.Required("created_at_after"): str,
+                    probatio.Required("created_at_before"): str,
+                    probatio.Optional("pdf_timezone", default="Europe/Berlin"): str,
+                    probatio.Optional(
                         "output_path", default="/config/charging_records.pdf"
                     ): str,
                 }

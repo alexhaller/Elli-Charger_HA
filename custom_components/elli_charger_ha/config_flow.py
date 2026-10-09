@@ -7,7 +7,7 @@ import json
 import logging
 from typing import Any
 
-import voluptuous as vol
+import probatio
 from elli_client import (  # type: ignore[import-not-found]
     AuthenticationError,
     ElliAPIClient,
@@ -29,7 +29,7 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
-STEP_CALLBACK_DATA_SCHEMA = vol.Schema({vol.Required(CONF_CALLBACK_URL): str})
+STEP_CALLBACK_DATA_SCHEMA = probatio.Schema({probatio.Required(CONF_CALLBACK_URL): str})
 
 
 def _account_subject(id_token: str | None) -> str | None:
@@ -207,10 +207,12 @@ class ElliOptionsFlowHandler(config_entries.OptionsFlow):
 
         return self.async_show_form(
             step_id="init",
-            data_schema=vol.Schema(
+            data_schema=probatio.Schema(
                 {
-                    vol.Required(CONF_SCAN_INTERVAL, default=current_interval): vol.All(
-                        vol.Coerce(int), vol.Range(min=1, max=60)
+                    probatio.Required(
+                        CONF_SCAN_INTERVAL, default=current_interval
+                    ): probatio.All(
+                        probatio.Coerce(int), probatio.Range(min=1, max=60)
                     ),
                 }
             ),
