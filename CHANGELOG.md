@@ -1,3 +1,15 @@
+## [3.0.0](https://github.com/alexhaller/Elli-Charger_HA/compare/v2.0.5...v3.0.0) (2026-10-09)
+
+### ⚠ BREAKING CHANGES
+
+* requires Home Assistant 2026.9.0 or later.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+
+### Features
+
+* build schemas with probatio and require Home Assistant 2026.9 ([5af5fd4](https://github.com/alexhaller/Elli-Charger_HA/commit/5af5fd43363aed44f86f7ce6b59913bc4c4e0a00))
+
 ## [2.0.5](https://github.com/alexhaller/Elli-Charger_HA/compare/v2.0.4...v2.0.5) (2026-08-07)
 
 ### Bug Fixes
