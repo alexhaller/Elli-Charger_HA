@@ -17,11 +17,9 @@ from elli_client.models import (
     TokenResponse,
 )
 from homeassistant.util import dt as dt_util
-from pytest_homeassistant_custom_component.common import MockConfigEntry
+from pytest_homeassistant.common import MockConfigEntry
 
 from custom_components.elli_charger_ha.const import CONF_REFRESH_TOKEN, DOMAIN
-
-pytest_plugins = "pytest_homeassistant_custom_component"
 
 SUBJECT = "account-subject"
 STATION_ID = "station-1"
@@ -85,11 +83,6 @@ def firmware_station() -> Station:
         name="Garage",
         installed_firmware=FirmwareInfo(id="fw", version="2.0.0"),
     )
-
-
-@pytest.fixture(autouse=True)
-def auto_enable_custom_integrations(enable_custom_integrations: None) -> None:
-    """Enable the integration under custom_components."""
 
 
 @pytest.fixture
