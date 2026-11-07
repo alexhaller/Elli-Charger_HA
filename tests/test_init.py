@@ -68,7 +68,9 @@ async def test_firmware_endpoint_enriches_the_station(
     await _setup(hass, config_entry)
 
     assert _state(hass, "sensor", f"{STATION_ID}_firmware") == "2.0.0"
-    device = dr.async_get(hass).async_get_device(identifiers={(DOMAIN, STATION_ID)})
+    device = dr.async_get(hass).async_get_device_by_identifier(
+        (DOMAIN, STATION_ID), config_entry.entry_id
+    )
     assert device is not None
     assert device.name == "Elli Wallbox Garage"
     assert device.sw_version == "2.0.0"
