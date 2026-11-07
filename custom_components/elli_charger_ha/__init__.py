@@ -36,7 +36,8 @@ from .const import (
 _LOGGER = logging.getLogger(__name__)
 
 # The Elli API returns fractional watts; patch the model to accept float.
-ChargingSession.__annotations__["momentary_charging_speed_watts"] = float | None
+# pydantic rebuilds from model_fields, not __annotations__, so patch the field.
+ChargingSession.model_fields["momentary_charging_speed_watts"].annotation = float | None
 ChargingSession.model_rebuild(force=True)
 
 PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.BINARY_SENSOR]
