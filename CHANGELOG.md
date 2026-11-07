@@ -1,3 +1,9 @@
+## [3.0.1](https://github.com/alexhaller/Elli-Charger_HA/compare/v3.0.0...v3.0.1) (2026-11-07)
+
+### Bug Fixes
+
+* accept fractional charging power from the Elli API ([352c841](https://github.com/alexhaller/Elli-Charger_HA/commit/352c84165c91aec5032fbf1eb16b0a8e64f75532))
+
 ## [3.0.0](https://github.com/alexhaller/Elli-Charger_HA/compare/v2.0.5...v3.0.0) (2026-10-09)
 
 ### ⚠ BREAKING CHANGES
