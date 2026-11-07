@@ -60,3 +60,14 @@ jobs:
           "
           pip-audit -r _reqs_tmp.txt
           rm _reqs_tmp.txt
+
+  tests:
+    name: pytest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+      - run: pip install -r requirements.test.txt
+      - run: pytest tests -q -o asyncio_mode=auto -o asyncio_default_fixture_loop_scope=function
