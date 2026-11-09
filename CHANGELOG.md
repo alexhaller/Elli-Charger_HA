@@ -1,3 +1,9 @@
+## [3.0.2](https://github.com/alexhaller/Elli-Charger_HA/compare/v3.0.1...v3.0.2) (2026-11-09)
+
+### Bug Fixes
+
+* restrict the charging records download to admins and checked paths ([bb1c526](https://github.com/alexhaller/Elli-Charger_HA/commit/bb1c526fab806187ceb388a7aaa498c52bded7cf))
+
 ## [3.0.1](https://github.com/alexhaller/Elli-Charger_HA/compare/v3.0.0...v3.0.1) (2026-11-07)
 
 ### Bug Fixes
