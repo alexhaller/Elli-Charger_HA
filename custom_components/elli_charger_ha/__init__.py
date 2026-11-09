@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Callable
 from datetime import timedelta
+from pathlib import Path
 from time import monotonic
 from typing import Any, override
 
@@ -18,8 +19,15 @@ from elli_client.models import ChargingSession  # type: ignore[import-not-found]
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, ServiceCall
-from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
+from homeassistant.exceptions import (
+    ConfigEntryAuthFailed,
+    ConfigEntryNotReady,
+    ServiceValidationError,
+)
+from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.device_registry import DeviceInfo
+from homeassistant.helpers.service import async_register_admin_service
+from homeassistant.helpers.typing import ConfigType
 from homeassistant.helpers.update_coordinator import (
     CoordinatorEntity,
     DataUpdateCoordinator,
@@ -43,6 +51,22 @@ ChargingSession.model_rebuild(force=True)
 PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.BINARY_SENSOR]
 
 type ElliCoordinator = DataUpdateCoordinator[dict]
+type ElliConfigEntry = ConfigEntry[ElliDataUpdateCoordinator]
+
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
+
+SERVICE_DOWNLOAD_CHARGING_RECORDS = "download_charging_records"
+_DEFAULT_PDF_PATH = "/config/charging_records.pdf"
+_DOWNLOAD_SCHEMA = probatio.Schema(
+    {
+        probatio.Required("station_id"): str,
+        probatio.Required("rfid_card_id"): str,
+        probatio.Required("created_at_after"): str,
+        probatio.Required("created_at_before"): str,
+        probatio.Optional("pdf_timezone", default="Europe/Berlin"): str,
+        probatio.Optional("output_path", default=_DEFAULT_PDF_PATH): str,
+    }
+)
 
 
 def _is_auth_error(err: BaseException) -> bool:
@@ -61,6 +85,57 @@ def _is_auth_error(err: BaseException) -> bool:
     return "Not authenticated" in message or ": 401 " in message
 
 
+def _checked_pdf_path(hass: HomeAssistant, raw_path: str) -> Path:
+    """Return where the PDF may be written, or refuse the path.
+
+    The service writes a file the caller names, so it only accepts a .pdf
+    inside the configuration directory or a directory Home Assistant allows
+    for external files.
+    """
+    path = Path(raw_path).resolve()
+    config_dir = Path(hass.config.config_dir).resolve()
+    if path.suffix.lower() != ".pdf":
+        raise ServiceValidationError("output_path must end in .pdf")
+    if not (path.is_relative_to(config_dir) or hass.config.is_allowed_path(str(path))):
+        raise ServiceValidationError(
+            "output_path must be inside the configuration directory or a "
+            "directory listed in allowlist_external_dirs"
+        )
+    return path
+
+
+async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
+    """Register the integration's service."""
+
+    async def handle_download_charging_records(call: ServiceCall) -> None:
+        """Download a PDF of charging records and write it to a file."""
+        entries = hass.config_entries.async_loaded_entries(DOMAIN)
+        if not entries:
+            raise ServiceValidationError("No Elli account is set up")
+        output_path = _checked_pdf_path(hass, call.data["output_path"])
+        coordinator: ElliDataUpdateCoordinator = entries[0].runtime_data
+        pdf_bytes: bytes = await hass.async_add_executor_job(
+            coordinator.client.get_charging_records_pdf,
+            call.data["station_id"],
+            call.data["rfid_card_id"],
+            call.data["created_at_after"],
+            call.data["created_at_before"],
+            call.data["pdf_timezone"],
+        )
+        await hass.async_add_executor_job(output_path.write_bytes, pdf_bytes)
+        _LOGGER.info("Charging records PDF written to %s", output_path)
+
+    # Writes a file on the host: administrators only
+    async_register_admin_service(
+        hass,
+        DOMAIN,
+        SERVICE_DOWNLOAD_CHARGING_RECORDS,
+        handle_download_charging_records,
+        schema=_DOWNLOAD_SCHEMA,
+    )
+    return True
+
+
 async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Migrate an old config entry.
 
@@ -74,10 +149,8 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     return True
 
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+async def async_setup_entry(hass: HomeAssistant, entry: ElliConfigEntry) -> bool:
     """Set up Elli Charger from a config entry."""
-    hass.data.setdefault(DOMAIN, {})
-
     refresh_token = entry.data.get(CONF_REFRESH_TOKEN)
     if not refresh_token:
         raise ConfigEntryAuthFailed("Browser authorization required")
@@ -102,66 +175,22 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         await hass.async_add_executor_job(client.close)
         raise
 
-    hass.data[DOMAIN][entry.entry_id] = coordinator
+    entry.runtime_data = coordinator
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     entry.async_on_unload(entry.add_update_listener(_async_options_updated))
 
-    if not hass.services.has_service(DOMAIN, "download_charging_records"):
-
-        async def handle_download_charging_records(call: ServiceCall) -> None:
-            """Download a PDF of charging records and write it to a file."""
-            first_coordinator: ElliDataUpdateCoordinator = next(
-                iter(hass.data[DOMAIN].values())
-            )
-            pdf_bytes: bytes = await hass.async_add_executor_job(
-                first_coordinator.client.get_charging_records_pdf,
-                call.data["station_id"],
-                call.data["rfid_card_id"],
-                call.data["created_at_after"],
-                call.data["created_at_before"],
-                call.data.get("pdf_timezone", "Europe/Berlin"),
-            )
-            output_path: str = call.data.get(
-                "output_path", "/config/charging_records.pdf"
-            )
-
-            def write_pdf() -> None:
-                with open(output_path, "wb") as f:
-                    f.write(pdf_bytes)
-
-            await hass.async_add_executor_job(write_pdf)
-            _LOGGER.info("Charging records PDF written to %s", output_path)
-
-        hass.services.async_register(
-            DOMAIN,
-            "download_charging_records",
-            handle_download_charging_records,
-            schema=probatio.Schema(
-                {
-                    probatio.Required("station_id"): str,
-                    probatio.Required("rfid_card_id"): str,
-                    probatio.Required("created_at_after"): str,
-                    probatio.Required("created_at_before"): str,
-                    probatio.Optional("pdf_timezone", default="Europe/Berlin"): str,
-                    probatio.Optional(
-                        "output_path", default="/config/charging_records.pdf"
-                    ): str,
-                }
-            ),
-        )
-
     return True
 
 
-async def _async_options_updated(hass: HomeAssistant, entry: ConfigEntry) -> None:
+async def _async_options_updated(hass: HomeAssistant, entry: ElliConfigEntry) -> None:
     """Reload the integration when the polling interval changes.
 
     The listener also fires when a rotated refresh token is written back to the
     entry, so reload only when the interval actually differs.
     """
-    coordinator: ElliDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
+    coordinator = entry.runtime_data
     scan_interval = entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
     if coordinator.update_interval == timedelta(minutes=scan_interval):
         return
@@ -169,19 +198,15 @@ async def _async_options_updated(hass: HomeAssistant, entry: ConfigEntry) -> Non
     await hass.config_entries.async_reload(entry.entry_id)
 
 
-async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+async def async_unload_entry(hass: HomeAssistant, entry: ElliConfigEntry) -> bool:
     """Unload a config entry."""
     if unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
-        coordinator = hass.data[DOMAIN].pop(entry.entry_id)
         try:
-            coordinator.client.close()
+            entry.runtime_data.client.close()
         except Exception:
             _LOGGER.warning(
                 "Error closing Elli API client during unload", exc_info=True
             )
-
-        if not hass.data[DOMAIN]:
-            hass.services.async_remove(DOMAIN, "download_charging_records")
 
     return unload_ok
 
@@ -200,6 +225,7 @@ class ElliDataUpdateCoordinator(DataUpdateCoordinator[dict]):
         super().__init__(
             hass,
             _LOGGER,
+            config_entry=entry,
             name=DOMAIN,
             update_interval=update_interval,
         )

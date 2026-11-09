@@ -1,6 +1,6 @@
 download_charging_records:
   name: Download Charging Records
-  description: Downloads a PDF of charging records for a wallbox and saves it to a file on the Home Assistant host.
+  description: Downloads a PDF of charging records for a wallbox and saves it to a file on the Home Assistant host. Administrators only.
   fields:
     station_id:
       name: Station ID
@@ -40,7 +40,7 @@ download_charging_records:
         text:
     output_path:
       name: Output Path
-      description: Full path on the HA host where the PDF will be written.
+      description: Full path of the PDF to write. It must end in .pdf and lie in the configuration directory or a directory listed in allowlist_external_dirs.
       required: false
       default: "/config/charging_records.pdf"
       example: "/config/charging_records.pdf"

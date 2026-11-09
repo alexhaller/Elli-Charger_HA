@@ -10,7 +10,6 @@ from homeassistant.components.sensor import (
     SensorEntity,
     SensorStateClass,
 )
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import UnitOfEnergy, UnitOfPower
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceInfo
@@ -21,7 +20,7 @@ from homeassistant.helpers.update_coordinator import (
     DataUpdateCoordinator,
 )
 
-from . import ElliBaseEntity, ElliCoordinator
+from . import ElliBaseEntity, ElliConfigEntry, ElliCoordinator
 from .const import DOMAIN
 
 PARALLEL_UPDATES = 0
@@ -29,11 +28,11 @@ PARALLEL_UPDATES = 0
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    entry: ConfigEntry,
+    entry: ElliConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up Elli Charger sensors based on a config entry."""
-    coordinator: ElliCoordinator = hass.data[DOMAIN][entry.entry_id]
+    coordinator: ElliCoordinator = entry.runtime_data
 
     entities: list[SensorEntity] = []
 

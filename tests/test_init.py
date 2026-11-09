@@ -10,7 +10,8 @@ import pytest
 from elli_client import ReauthenticationRequired
 from homeassistant.config_entries import SOURCE_REAUTH, ConfigEntryState
 from homeassistant.const import STATE_ON
-from homeassistant.core import HomeAssistant
+from homeassistant.core import Context, HomeAssistant
+from homeassistant.exceptions import ServiceValidationError, Unauthorized
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from pytest_homeassistant.common import MockConfigEntry
@@ -159,7 +160,7 @@ async def test_only_auth_errors_renew_the_token(
 ) -> None:
     """A 401 renews the access token once; a timeout must not burn a rotation."""
     await _setup(hass, config_entry)
-    coordinator = hass.data[DOMAIN][config_entry.entry_id]
+    coordinator = config_entry.runtime_data
     sessions = client.get_charging_sessions.return_value
     client.get_charging_sessions.side_effect = [error, sessions]
 
@@ -179,7 +180,7 @@ async def test_interval_change_reloads(
     )
     await hass.async_block_till_done()
 
-    coordinator = hass.data[DOMAIN][config_entry.entry_id]
+    coordinator = config_entry.runtime_data
     assert coordinator.update_interval == timedelta(minutes=15)
 
 
@@ -191,6 +192,7 @@ async def test_service_writes_the_pdf(
 ) -> None:
     client.get_charging_records_pdf.return_value = b"%PDF-1.7"
     await _setup(hass, config_entry)
+    hass.config.allowlist_external_dirs = {str(tmp_path)}
     output = tmp_path / "records.pdf"
 
     await hass.services.async_call(
@@ -212,14 +214,105 @@ async def test_service_writes_the_pdf(
     )
 
 
-async def test_unload_removes_service_and_closes_client(
+async def test_unload_closes_the_client(
     hass: HomeAssistant, client: MagicMock, config_entry: MockConfigEntry
 ) -> None:
     await _setup(hass, config_entry)
-    assert hass.services.has_service(DOMAIN, SERVICE)
 
     assert await hass.config_entries.async_unload(config_entry.entry_id)
 
     assert config_entry.state is ConfigEntryState.NOT_LOADED
-    assert not hass.services.has_service(DOMAIN, SERVICE)
     client.close.assert_called_once()
+
+
+def _download(output: str) -> dict[str, str]:
+    return {
+        "station_id": STATION_ID,
+        "rfid_card_id": CARD_ID,
+        "created_at_after": "2026-10-01",
+        "created_at_before": "2026-11-01",
+        "output_path": output,
+    }
+
+
+@pytest.mark.parametrize(
+    ("relative", "message"),
+    [("records.txt", "must end in .pdf"), ("../outside.pdf", "must be inside")],
+)
+async def test_service_refuses_other_files_and_places(
+    hass: HomeAssistant,
+    client: MagicMock,
+    config_entry: MockConfigEntry,
+    tmp_path: Path,
+    relative: str,
+    message: str,
+) -> None:
+    """The caller names the file, so only a .pdf in an allowed place is written."""
+    await _setup(hass, config_entry)
+    allowed = tmp_path / "allowed"
+    allowed.mkdir()
+    hass.config.allowlist_external_dirs = {str(allowed)}
+
+    with pytest.raises(ServiceValidationError, match=message):
+        await hass.services.async_call(
+            DOMAIN, SERVICE, _download(str(allowed / relative)), blocking=True
+        )
+
+    client.get_charging_records_pdf.assert_not_called()
+
+
+async def test_service_needs_an_admin(
+    hass: HomeAssistant,
+    client: MagicMock,
+    config_entry: MockConfigEntry,
+    hass_read_only_user,
+    tmp_path: Path,
+) -> None:
+    await _setup(hass, config_entry)
+    hass.config.allowlist_external_dirs = {str(tmp_path)}
+
+    with pytest.raises(Unauthorized):
+        await hass.services.async_call(
+            DOMAIN,
+            SERVICE,
+            _download(str(tmp_path / "records.pdf")),
+            blocking=True,
+            context=Context(user_id=hass_read_only_user.id),
+        )
+
+    assert not (tmp_path / "records.pdf").exists()
+
+
+async def test_service_without_a_loaded_account(
+    hass: HomeAssistant,
+    client: MagicMock,
+    config_entry: MockConfigEntry,
+    tmp_path: Path,
+) -> None:
+    await _setup(hass, config_entry)
+    await hass.config_entries.async_unload(config_entry.entry_id)
+    hass.config.allowlist_external_dirs = {str(tmp_path)}
+
+    with pytest.raises(ServiceValidationError, match="No Elli account"):
+        await hass.services.async_call(
+            DOMAIN, SERVICE, _download(str(tmp_path / "records.pdf")), blocking=True
+        )
+
+
+async def test_diagnostics_hide_token_and_identifiers(
+    hass: HomeAssistant, client: MagicMock, config_entry: MockConfigEntry
+) -> None:
+    from custom_components.elli_charger_ha.diagnostics import (
+        async_get_config_entry_diagnostics,
+    )
+
+    await _setup(hass, config_entry)
+
+    diagnostics = await async_get_config_entry_diagnostics(hass, config_entry)
+
+    assert REFRESH_TOKEN not in str(diagnostics)
+    assert STATION_ID not in str(diagnostics)
+    assert "SN123" not in str(diagnostics)
+    station = diagnostics["data"]["stations"][0]
+    assert station["model"] == "Elli Wallbox Pro"
+    assert station["firmware_version"] == "2.0.0"

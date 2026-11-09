@@ -6,23 +6,21 @@ from homeassistant.components.binary_sensor import (
     BinarySensorDeviceClass,
     BinarySensorEntity,
 )
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from . import ElliBaseEntity, ElliCoordinator
-from .const import DOMAIN
+from . import ElliBaseEntity, ElliConfigEntry, ElliCoordinator
 
 PARALLEL_UPDATES = 0
 
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    entry: ConfigEntry,
+    entry: ElliConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up Elli Charger binary sensors based on a config entry."""
-    coordinator: ElliCoordinator = hass.data[DOMAIN][entry.entry_id]
+    coordinator: ElliCoordinator = entry.runtime_data
 
     entities: list[BinarySensorEntity] = []
 
