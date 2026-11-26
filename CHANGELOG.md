@@ -1,3 +1,9 @@
+## [3.0.3](https://github.com/alexhaller/Elli-Charger_HA/compare/v3.0.2...v3.0.3) (2026-11-26)
+
+### Bug Fixes
+
+* ship the brand icon at the sizes hassfest accepts ([cd1109a](https://github.com/alexhaller/Elli-Charger_HA/commit/cd1109a69ffe1e629e1f58820be82172a0235c99))
+
 ## [3.0.2](https://github.com/alexhaller/Elli-Charger_HA/compare/v3.0.1...v3.0.2) (2026-11-09)
 
 ### Bug Fixes
