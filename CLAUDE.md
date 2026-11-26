@@ -17,7 +17,7 @@ Key files:
 ## Project-specific notes
 
 - **Domain**: `elli_charger_ha`; pip-audit packages: `elli-client==1.5.0`
-- **Brand**: `custom_components/elli_charger_ha/brand/icon.png` + `brands/icon.png` (512×512 PNG)
+- **Brand**: `custom_components/elli_charger_ha/brand/icon.png` (256×256) + `brand/icon@2x.png` (512×512) + `brands/icon.png` (512×512)
 - **`.releaserc.json`** `prepareCmd` path: `custom_components/elli_charger_ha/manifest.json`
 - **CI tool versions**: `validate.yml` lints on Python 3.14 and pins `ruff==0.16.1` and
   `mypy==2.3.0`. Deviation from the global "CLI defaults" rule, on purpose: ruff 0.16
